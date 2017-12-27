@@ -1,9 +1,9 @@
 function dsp_ex2
 
-N_packet = 1000; % number of iterations
+N_packet = 10000; % number of iterations
 N_frame  = 4;    % number of modulation symbol per packet
       M  = 16;
-   SNRs  = (10:1:30); % Signal to Noise Ratio (dB)
+   SNRs  = (1:1:30); % Signal to Noise Ratio (dB)
 
 for i_SNR = 1:length(SNRs)
     SNR   = SNRs(i_SNR);
@@ -14,7 +14,7 @@ for i_SNR = 1:length(SNRs)
     
     for j_pkt = 1:N_packet        
         %% Transmiter
-        tx_bits = randi([0 1],[1,N_frame*sqrt(M)])
+        tx_bits = randi([0 1],[1,N_frame*sqrt(M)]);
         tx_syms = qam_mapper(M, tx_bits);
 
         X_tx = tx_syms; % Transmit signals sent to antenna
@@ -42,8 +42,8 @@ for i_SNR = 1:length(SNRs)
 end
 
     figure;
-    hold on;
     semilogy(SNRs,BER_soft,'marker', '^');
+    hold on;
     semilogy(SNRs,BER_hard,'marker', 'o');
     hold off;
     grid on;
