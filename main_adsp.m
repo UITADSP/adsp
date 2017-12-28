@@ -4,11 +4,11 @@ clear
 close all
 % begin
 % N_packet = 1000; % No of iterations
-N_packet = 1;
+N_packet = 100;
 b = 4; % modulation index 1:BPSK, 2:QPSK, 4: 16 QAM, 6: 64 QAM
 N_frame = 16; % No of Modulation symbols per packet
 M = 16;
-SNRdBs = (0:5:50);
+SNRdBs = (1:1:20);
 sq2 = sqrt(2);
 mode = 'sdm';
 channel = 'rayleigh';
@@ -33,7 +33,7 @@ for i_SNR = 1:length(SNRdBs)
        %tx_bits = convolution_encode(input_bits)
        %tx_bits = reshape(tx_bits.',length(tx_bits)/b, b)
        %build 16 QAM symbols
-       tx_sym = mapper(tx_bits)
+       tx_sym = mapper(tx_bits);
        
        %16 OFDM symbols with 16 QAM symbols;
        disp('Transmitter bits 16 OFDM');
@@ -71,8 +71,8 @@ for i_SNR = 1:length(SNRdBs)
        errors_hards(i_packet) = sum(error_hard);
        
     end %end for loop for i packet
-    BER_SOFT(i_SNR) = sum(errors_softs)/(N_packet*N_frame*b*2);
-    BER_HARD(i_SNR) = sum(errors_hards)/(N_packet*N_frame*b*2);
+    BER_SOFT(i_SNR) = sum(errors_softs)/(N_packet*N_frame*b);
+    BER_HARD(i_SNR) = sum(errors_hards)/(N_packet*N_frame*b);
 end %end for loop for i SNR
 
 figure
