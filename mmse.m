@@ -1,69 +1,96 @@
 function mmse
 
-N_packet = 1000; % number of iterations
-N_frame  = 4;     % number of modulation symbol per packet
-      M  = 16;
-   SNRs  = (1:1:30); % Signal to Noise Ratio (dB)
+N_packet = 10000; % number of iterations
+N_frame  = 2;     % number of modulation symbol per packet
+N_tx     = 2;
+N_rx     = 2;
 
-for i_SNR = 1:length(SNRs)
-      SNR = SNRs(i_SNR);
-    sigma = sqrt(0.5/(10^(SNR/10)));
+      M  = 16;
+SNR_dBs  = (0:1:35); % Signal to Noise Ratio (dB)
+
+for i_SNR = 1:length(SNR_dBs)
+   SNR_dB = SNR_dBs(i_SNR);
+    %sigma = sqrt(1/SNR_dB);
+    sigma = sqrt(0.5/(10^(SNR_dB/10)));
     
     correct_bits_zf = 0;
     correct_bits_mmse = 0;
     
     for j_pkt = 1:N_packet        
-        %% Transmiter
+        %% Transmitter
         tx_bits = randi([0 1],[1,N_frame*sqrt(M)]);
-        %tx_syms = qam_mapper(M, tx_bits);
-        tx_syms = qammod(tx_bits', M, 'InputType', 'bit');
-
-        X_tx = tx_syms'; % Transmit signals sent to antenna
+        
+        % My QAM function
+        tx_syms = qam_mapper(M, tx_bits);
+        X_tx = tx_syms; % Transmit signals sent to antenna
+        
+        % MatLab QAM function
+        %tx_syms = qammod(tx_bits', M, 'InputType', 'bit');
+        %X_tx = tx_syms'; % Transmit signals sent to antenna
         
         %% Environmental noise
-        H = (randn(N_frame) + randn(N_frame) * 1i) / sqrt(2);
-        %H = zeros(N_frame, 1) % no noise at all
+        H = (rand(N_tx) +rand(N_tx) *1i) / sqrt(2);
 
         %% Receiver
-        N = (randn(1, N_frame) + randn(1, N_frame) * 1i) * sigma; % White Gaussian noise
+        N = (randn(1, N_rx) + randn(1, N_rx) * 1i) *sigma *10; % White Gaussian noise
         Y = X_tx * H + N;
+        %Y = awgn(X_tx *H, SNR_dB);
         
         % ZF decoding weight matrix
-        W_ZF = H^-1;
+        W_ZF   = H^-1;
         
         % MMSE decoding weight matrix
-        %W_MMSE      = (conj(H))/(conj(H) + eye(4)/(SNR / (10 * log(10))));
-        W_MMSE      = ((conj(H) * H + (10 ^ (-SNR/10)) * eye(N_frame)) ^ -1) * conj(H);
+        %W_MMSE = ((H' *H + (10 ^(-SNR_dB/10)) *eye(N_tx)) ^ -1) *H';
+        W_MMSE = (H' *H + (10 ^(-SNR_dB/10)) *eye(N_tx)) \H';
         
-        %rx_bits_zf = qam_demapper(16, Y/H, 'soft');
-        rx_bits_zf = qamdemod((Y * W_ZF)', 16, 'OutputType', 'bit');
-        rx_bits_zf = reshape(rx_bits_zf, 1, 16);
+        % My QAM function
+        rx_bits_zf = qam_demapper(16, Y * W_ZF, 'hard');
         
-        %rx_bits_mmse = qam_demapper(16, (Y * W_MMSE)/(H * W_MMSE), 'soft');
-        rx_bits_mmse = qamdemod((Y * W_MMSE)', 16, 'OutputType', 'bit');
-        rx_bits_mmse = reshape(rx_bits_mmse, 1, 16);
+        % MatLab QAM function
+        %rx_bits_zf = qamdemod((Y * W_ZF)', 16, 'OutputType', 'bit');
+        %rx_bits_zf = reshape(rx_bits_zf, 1, 16);
         
-        tx_rx_result_zf = (tx_bits == rx_bits_zf);
+        % My QAM function
+        rx_bits_mmse = qam_demapper(16, Y * W_MMSE, 'hard');
+        
+        % MatLab QAM function
+        %rx_bits_mmse = qamdemod((Y * W_MMSE)', 16, 'OutputType', 'bit');
+        %rx_bits_mmse = reshape(rx_bits_mmse, 1, 16);
+        
+        % Count the correct bits
+        tx_rx_result_zf   = (tx_bits == rx_bits_zf);
         tx_rx_result_mmse = (tx_bits == rx_bits_mmse);
         
-        correct_bits_zf = correct_bits_zf + sum(tx_rx_result_zf);
-        correct_bits_mmse = correct_bits_mmse + sum(tx_rx_result_mmse);
+        correct_bits_zf   = sum(tx_rx_result_zf)   + correct_bits_zf;
+        correct_bits_mmse = sum(tx_rx_result_mmse) + correct_bits_mmse;
     end
     
-    BER_zf(i_SNR) = (N_packet * N_frame * sqrt(M) - correct_bits_zf) / (N_packet * N_frame * sqrt(M));
-    BER_mmse(i_SNR) = (N_packet * N_frame * sqrt(M) - correct_bits_mmse) / (N_packet * N_frame * sqrt(M));
+    % Total bit transmitted
+    tx_bits_total = N_packet * N_frame * sqrt(M);
+    
+    BER_zf  (i_SNR) = (tx_bits_total - correct_bits_zf)   / tx_bits_total;
+    BER_mmse(i_SNR) = (tx_bits_total - correct_bits_mmse) / tx_bits_total;
 end
-
+    close;
     figure;
-    %hold on;
-    semilogy(SNRs,BER_zf, 'marker', '^');
+    semilogy(SNR_dBs,BER_zf, 'marker', '^');
     hold on;
-    semilogy(SNRs,BER_mmse,'marker', 'o');
+    semilogy(SNR_dBs,BER_mmse,'marker', 'o');
     hold off;
     grid on;
     xlabel('Signal-to-Noise Ratio (dB)');
     ylabel('Bit Error Rate');
     %ylim([-0.01 0.12]);
     %axis([0 20 10^-5 0.5])
+    legend('Zero Forcing','MMSE')
+    
+	figure;
+    plot(SNR_dBs,BER_zf, 'marker', '^');
+    hold on;
+    plot(SNR_dBs,BER_mmse,'marker', 'o');
+    hold off;
+    grid on;
+    xlabel('Signal-to-Noise Ratio (dB)');
+    ylabel('Bit Error Rate');
     legend('Zero Forcing','MMSE')
 end
